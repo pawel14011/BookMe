@@ -13,9 +13,14 @@ export const bookingService = {
 	},
 
 	getRoomBookings: async (roomId, startDate, endDate) => {
-		const response = await api.get('/bookings/room/:roomId', {
+		const response = await api.get('/bookings/room', {
 			params: { roomId, startDate, endDate },
 		})
+		return response.data
+	},
+
+	getUserBookingsByAdmin: async userId => {
+		const response = await api.get(`/bookings/user/${userId}`)
 		return response.data
 	},
 
