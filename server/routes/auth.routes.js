@@ -6,7 +6,7 @@ const router = express.Router()
 
 // Publiczne routes
 router.post('/register', authController.register)
-router.post('/login', authController.login)
+router.post('/confirm-email', authController.confirmEmail)
 
 // Chronione routes (wymagają JWT)
 router.get('/profile', authMiddleware, authController.getProfile)
