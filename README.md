@@ -41,3 +41,42 @@ Lub jako noramalny pracownik.
 Ogólnie domyślnie są wypełniane dane wiec możesz to wyłączyć w lokalizacji /server/models/index.js/
 
 Komentując 43/44/45 linijki
+
+
+
+## Tutaj funkcje do sprawdzenia:
+
+### Użytkownik
+
+#### Zarządzanie Rezerwacjami
+- Rezerwowanie sal w wybranym terminie
+- Odwoływanie własnych rezerwacji
+- Zmiana terminu istniejącej rezerwacji
+- Przeglądanie historii własnych rezerwacji
+
+#### Przeglądanie Sal
+- Przeglądanie dostępnych sal
+- Sprawdzanie dostępnych terminów dla wybranej sali
+- Wyszukiwanie wolnych terminów konkretnej sali
+- Filtrowanie sal według kryteriów
+
+#### Konto
+- Rejestracja nowego konta
+- Logowanie do systemu
+- Edycja danych profilu
+- Usuwanie konta
+
+### Administrator
+
+#### Zarządzanie Salami
+- Dodawanie nowych sal
+- Usuwanie sal
+- Zmiana nazwy sal
+- Dodawanie i zarządzanie typami sal
+
+#### Zarządzanie Rezerwacjami
+- Przeglądanie wszystkich rezerwacji użytkowników
+- Anulowanie rezerwacji użytkowników
+- Usuwanie rezerwacji
+- Pełna kontrola nad systemem rezerwacji
+
