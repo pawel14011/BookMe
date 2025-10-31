@@ -1,6 +1,8 @@
+// client/src/services/api.js
 import axios from 'axios'
+import userPool from '../cognito/userPool'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
 	baseURL: API_URL,
@@ -9,25 +11,41 @@ const api = axios.create({
 	},
 })
 
-// Interceptor - dodaj token do każdego requesta
 api.interceptors.request.use(
 	config => {
-		const token = localStorage.getItem('token')
-		if (token) {
-			config.headers.Authorization = `Bearer ${token}`
-		}
-		return config
+		return new Promise(resolve => {
+			const cognitoUser = userPool.getCurrentUser()
+
+			if (!cognitoUser) {
+				console.log('Brak zalogowanego użytkownika')
+				resolve(config)
+				return
+			}
+
+			cognitoUser.getSession((err, session) => {
+				if (!err && session?.isValid?.()) {
+					const token = session.getIdToken().getJwtToken()
+					config.headers.Authorization = `Bearer ${token}`
+					console.log('✅ Token dodany do żądania')
+				} else {
+					console.log('⚠️ Sesja nie jest ważna')
+				}
+				resolve(config)
+			})
+		})
 	},
 	error => Promise.reject(error)
 )
 
-// Interceptor - obsługa błędów
 api.interceptors.response.use(
 	response => response,
 	error => {
 		if (error.response?.status === 401) {
-			localStorage.removeItem('token')
-			localStorage.removeItem('user')
+			console.warn('⚠️ Token wygasł, wylogowywanie')
+			const cognitoUser = userPool.getCurrentUser()
+			if (cognitoUser) {
+				cognitoUser.signOut()
+			}
 			window.location.href = '/login'
 		}
 		return Promise.reject(error)

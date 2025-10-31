@@ -1,53 +1,55 @@
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
+// backend/controllers/auth.controller.js
 const { User } = require('../models')
-require('dotenv').config()
 
-// Rejestracja użytkownika
+// ✅ Rejestracja użytkownika (wywoływana z frontendu PO rejestracji w Cognito)
 exports.register = async (req, res) => {
 	try {
-		const { email, password, firstName, lastName, title, subjects } = req.body
+		const { cognitoUserId, email, firstName, lastName, title, subjects } = req.body
 
-		// Walidacja
-		if (!email || !password) {
+		// ✅ Walidacja - cognitoUserId i email są wymagane
+		if (!cognitoUserId || !email) {
 			return res.status(400).json({
-				message: 'Email i hasło są wymagane',
+				message: 'cognitoUserId i email są wymagane',
 			})
 		}
 
-		// Sprawdzenie czy user już istnieje
-		const existingUser = await User.findOne({ where: { email } })
+		// ✅ Sprawdzenie czy user już istnieje (po cognitoUserId lub email)
+		const existingUser = await User.findOne({
+			where: {
+				[require('sequelize').Op.or]: [{ cognitoUserId }, { email }],
+			},
+		})
+
 		if (existingUser) {
 			return res.status(400).json({
-				message: 'Użytkownik z tym emailem już istnieje',
+				message: 'Użytkownik już istnieje w bazie danych',
 			})
 		}
 
-		// Hashowanie hasła
-		const hashedPassword = await bcrypt.hash(password, 10)
-
-		// Tworzenie użytkownika
+		// ✅ Tworzenie użytkownika (BEZ hasła!)
 		const user = await User.create({
+			cognitoUserId,
 			email,
-			password: hashedPassword,
 			firstName: firstName || null,
 			lastName: lastName || null,
 			title: title || null,
 			subjects: subjects || null,
+			emailVerified: false, // Będzie zaktualizowane po potwierdzeniu
 			role: 'user',
 		})
 
 		return res.status(201).json({
-			message: 'Rejestracja pomyślna!',
+			message: 'Użytkownik zarejestrowany w bazie danych',
 			user: {
 				id: user.id,
+				cognitoUserId: user.cognitoUserId,
 				email: user.email,
 				firstName: user.firstName,
 				lastName: user.lastName,
 			},
 		})
 	} catch (error) {
-		console.error(error)
+		console.error('Błąd rejestracji:', error)
 		return res.status(500).json({
 			message: 'Błąd podczas rejestracji',
 			error: error.message,
@@ -55,70 +57,45 @@ exports.register = async (req, res) => {
 	}
 }
 
-// Logowanie użytkownika
-exports.login = async (req, res) => {
+// ✅ Potwierdzenie emaila (wywoływane z frontendu PO potwierdzeniu w Cognito)
+exports.confirmEmail = async (req, res) => {
 	try {
-		const { email, password } = req.body
+		const { email } = req.body
 
-		// Walidacja
-		if (!email || !password) {
+		if (!email) {
 			return res.status(400).json({
-				message: 'Email i hasło są wymagane',
+				message: 'Email jest wymagany',
 			})
 		}
 
-		// Szukanie użytkownika
 		const user = await User.findOne({ where: { email } })
+
 		if (!user) {
-			return res.status(401).json({
-				message: 'Błędne dane logowania',
+			return res.status(404).json({
+				message: 'Użytkownik nie znaleziony',
 			})
 		}
 
-		// Sprawdzenie hasła
-		const isPasswordValid = await bcrypt.compare(password, user.password)
-		if (!isPasswordValid) {
-			return res.status(401).json({
-				message: 'Błędne dane logowania',
-			})
-		}
-
-		// Generowanie JWT tokenu
-		const token = jwt.sign(
-			{
-				id: user.id,
-				email: user.email,
-				role: user.role,
-			},
-			process.env.JWT_SECRET,
-			{ expiresIn: process.env.JWT_EXPIRE }
-		)
+		await user.update({ emailVerified: true })
 
 		return res.status(200).json({
-			message: 'Zalogowano pomyślnie!',
-			token,
-			user: {
-				id: user.id,
-				email: user.email,
-				firstName: user.firstName,
-				lastName: user.lastName,
-				role: user.role,
-			},
+			message: 'Email potwierdzony',
 		})
 	} catch (error) {
-		console.error(error)
+		console.error('Błąd potwierdzenia:', error)
 		return res.status(500).json({
-			message: 'Błąd podczas logowania',
+			message: 'Błąd podczas potwierdzania emaila',
 			error: error.message,
 		})
 	}
 }
 
-// Pobranie profilu użytkownika
 exports.getProfile = async (req, res) => {
 	try {
-		const user = await User.findByPk(req.user.id, {
-			attributes: { exclude: ['password'] },
+		// req.user pochodzi z authMiddleware
+		const user = await User.findOne({
+			where: { cognitoUserId: req.user.cognitoUserId },
+			attributes: { exclude: ['password'] }, // Na wszelki wypadek
 		})
 
 		if (!user) {
@@ -127,8 +104,22 @@ exports.getProfile = async (req, res) => {
 			})
 		}
 
-		return res.status(200).json({ user })
+		return res.status(200).json({
+			user: {
+				id: user.id,
+				cognitoUserId: user.cognitoUserId,
+				email: user.email,
+				firstName: user.firstName,
+				lastName: user.lastName,
+				title: user.title,
+				subjects: user.subjects,
+				role: user.role,
+				emailVerified: user.emailVerified,
+				createdAt: user.createdAt,
+			},
+		})
 	} catch (error) {
+		console.error('Błąd pobierania profilu:', error)
 		return res.status(500).json({
 			message: 'Błąd podczas pobierania profilu',
 			error: error.message,
@@ -136,37 +127,44 @@ exports.getProfile = async (req, res) => {
 	}
 }
 
-// Aktualizacja profilu użytkownika
+// ✅ Aktualizacja profilu użytkownika (wymaga authMiddleware)
 exports.updateProfile = async (req, res) => {
 	try {
 		const { firstName, lastName, title, subjects } = req.body
 
-		const user = await User.findByPk(req.user.id)
+		const user = await User.findOne({
+			where: { cognitoUserId: req.user.cognitoUserId },
+		})
+
 		if (!user) {
 			return res.status(404).json({
 				message: 'Użytkownik nie znaleziony',
 			})
 		}
 
+		// ✅ Aktualizuj tylko pola, które zostały przesłane
 		await user.update({
-			firstName: firstName || user.firstName,
-			lastName: lastName || user.lastName,
-			title: title || user.title,
-			subjects: subjects || user.subjects,
+			firstName: firstName !== undefined ? firstName : user.firstName,
+			lastName: lastName !== undefined ? lastName : user.lastName,
+			title: title !== undefined ? title : user.title,
+			subjects: subjects !== undefined ? subjects : user.subjects,
 		})
 
 		return res.status(200).json({
-			message: 'Profil zaktualizowany!',
+			message: 'Profil zaktualizowany',
 			user: {
 				id: user.id,
+				cognitoUserId: user.cognitoUserId,
 				email: user.email,
 				firstName: user.firstName,
 				lastName: user.lastName,
 				title: user.title,
 				subjects: user.subjects,
+				role: user.role,
 			},
 		})
 	} catch (error) {
+		console.error('Błąd aktualizacji profilu:', error)
 		return res.status(500).json({
 			message: 'Błąd podczas aktualizacji profilu',
 			error: error.message,
@@ -174,10 +172,13 @@ exports.updateProfile = async (req, res) => {
 	}
 }
 
-// Usuwanie konta użytkownika
+// ✅ Usuwanie konta użytkownika (wymaga authMiddleware)
 exports.deleteAccount = async (req, res) => {
 	try {
-		const user = await User.findByPk(req.user.id)
+		const user = await User.findOne({
+			where: { cognitoUserId: req.user.cognitoUserId },
+		})
+
 		if (!user) {
 			return res.status(404).json({
 				message: 'Użytkownik nie znaleziony',
@@ -187,9 +188,10 @@ exports.deleteAccount = async (req, res) => {
 		await user.destroy()
 
 		return res.status(200).json({
-			message: 'Konto usunięte pomyślnie!',
+			message: 'Konto usunięte z bazy danych',
 		})
 	} catch (error) {
+		console.error('Błąd usuwania konta:', error)
 		return res.status(500).json({
 			message: 'Błąd podczas usuwania konta',
 			error: error.message,

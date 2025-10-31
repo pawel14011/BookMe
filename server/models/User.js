@@ -9,15 +9,18 @@ module.exports = sequelize => {
 				primaryKey: true,
 				autoIncrement: true,
 			},
+			cognitoUserId: {
+				type: DataTypes.STRING,
+				allowNull: true,
+				unique: true,
+				comment: 'Sub z AWS Cognito - unikalny identyfikator użytkownika',
+			},
 			email: {
 				type: DataTypes.STRING,
 				allowNull: false,
 				unique: true,
 				validate: { isEmail: true },
-			},
-			password: {
-				type: DataTypes.STRING,
-				allowNull: false,
+				comment: 'Email użytkownika',
 			},
 			firstName: {
 				type: DataTypes.STRING,
@@ -35,6 +38,11 @@ module.exports = sequelize => {
 				type: DataTypes.TEXT,
 				allowNull: true,
 				comment: 'Przedmioty lub zajęcia prowadzone',
+			},
+			emailVerified: {
+				type: DataTypes.BOOLEAN,
+				defaultValue: false,
+				comment: 'Czy email został zweryfikowany w Cognito',
 			},
 			role: {
 				type: DataTypes.ENUM('user', 'admin'),
