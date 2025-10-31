@@ -4,6 +4,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { bookingService } from '../services/bookingService'
 import moment from 'moment'
 import { useAuth } from '../hooks/useAuth'
+import EditBookingModal from './EditBookingModal'
 
 const BookingCalendar = () => {
 	const [bookings, setBookings] = useState([])
@@ -11,7 +12,9 @@ const BookingCalendar = () => {
 	const [selectedDate, setSelectedDate] = useState(null)
 	const [selectedEvent, setSelectedEvent] = useState(null)
 	const [showEventModal, setShowEventModal] = useState(false)
-	const [filter, setFilter] = useState('all') // all, upcoming, past
+	const [showEditModal, setShowEditModal] = useState(false)
+	const [editingBooking, setEditingBooking] = useState(null)
+	const [filter, setFilter] = useState('all')
 	const { user } = useAuth()
 
 	useEffect(() => {
@@ -34,7 +37,6 @@ const BookingCalendar = () => {
 	const applyFilters = () => {
 		let filtered = [...bookings]
 
-		// Filtr po dacie
 		if (selectedDate) {
 			filtered = filtered.filter(booking => {
 				const bookingDate = moment(booking.startTime).format('YYYY-MM-DD')
@@ -43,7 +45,6 @@ const BookingCalendar = () => {
 			})
 		}
 
-		// Filtr po statusie czasowym
 		const now = moment()
 		if (filter === 'upcoming') {
 			filtered = filtered.filter(booking => moment(booking.startTime).isAfter(now) && booking.status === 'confirmed')
@@ -51,9 +52,7 @@ const BookingCalendar = () => {
 			filtered = filtered.filter(booking => moment(booking.endTime).isBefore(now) || booking.status === 'cancelled')
 		}
 
-		// Sortuj po dacie
 		filtered.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-
 		setFilteredBookings(filtered)
 	}
 
@@ -68,6 +67,12 @@ const BookingCalendar = () => {
 		} catch (err) {
 			alert('Błąd podczas anulowania rezerwacji')
 		}
+	}
+
+	const handleEditClick = booking => {
+		setEditingBooking(booking)
+		setShowEditModal(true)
+		setShowEventModal(false)
 	}
 
 	const getStatusColor = booking => {
@@ -187,16 +192,26 @@ const BookingCalendar = () => {
 									</div>
 								</div>
 
-								<div className='ml-4'>
+								<div className='ml-4 flex flex-col gap-2'>
 									{booking.status === 'confirmed' && moment(booking.startTime).isAfter(moment()) && (
-										<button
-											onClick={e => {
-												e.stopPropagation()
-												handleCancelBooking(booking.id)
-											}}
-											className='text-red-600 hover:text-red-900 text-sm font-semibold'>
-											Anuluj
-										</button>
+										<>
+											<button
+												onClick={e => {
+													e.stopPropagation()
+													handleEditClick(booking)
+												}}
+												className='text-blue-600 hover:text-blue-900 text-sm font-semibold'>
+												Edytuj
+											</button>
+											<button
+												onClick={e => {
+													e.stopPropagation()
+													handleCancelBooking(booking.id)
+												}}
+												className='text-red-600 hover:text-red-900 text-sm font-semibold'>
+												Anuluj
+											</button>
+										</>
 									)}
 								</div>
 							</div>
@@ -253,11 +268,18 @@ const BookingCalendar = () => {
 
 						<div className='flex gap-2'>
 							{selectedEvent.status === 'confirmed' && moment(selectedEvent.startTime).isAfter(moment()) && (
-								<button
-									onClick={() => handleCancelBooking(selectedEvent.id)}
-									className='bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded'>
-									Anuluj rezerwację
-								</button>
+								<>
+									<button
+										onClick={() => handleEditClick(selectedEvent)}
+										className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>
+										Edytuj
+									</button>
+									<button
+										onClick={() => handleCancelBooking(selectedEvent.id)}
+										className='bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded'>
+										Anuluj rezerwację
+									</button>
+								</>
 							)}
 							<button
 								onClick={() => setShowEventModal(false)}
@@ -267,6 +289,18 @@ const BookingCalendar = () => {
 						</div>
 					</div>
 				</div>
+			)}
+
+			{/* Modal edycji */}
+			{showEditModal && editingBooking && (
+				<EditBookingModal
+					booking={editingBooking}
+					onClose={() => {
+						setShowEditModal(false)
+						setEditingBooking(null)
+					}}
+					onUpdated={fetchBookings}
+				/>
 			)}
 		</div>
 	)
