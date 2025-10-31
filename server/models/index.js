@@ -7,7 +7,7 @@ const RoomType = require('./RoomType')(sequelize)
 const Room = require('./Room')(sequelize)
 const Booking = require('./Booking')(sequelize)
 
-// Definiowanie relacji[1][22][25]
+// Definiowanie relacji
 // User - Booking (jeden do wielu)
 User.hasMany(Booking, {
 	foreignKey: 'UserId',
@@ -29,11 +29,20 @@ RoomType.hasMany(Room, {
 })
 Room.belongsTo(RoomType)
 
+// Import seeders
+const createDefaultAdmin = require('../seeders/defaultAdmin')
+const createSampleData = require('../seeders/sampleData')
+const createSampleBookings = require('../seeders/sampleBookings')
 // Sync bazy danych
 const syncDatabase = async () => {
 	try {
 		await sequelize.sync({ alter: true })
 		console.log('✅ Modele zsynchronizowane z bazą danych')
+
+		// Przekaż modele do seederów
+		await createDefaultAdmin(User)
+		await createSampleData(RoomType, Room)
+		await createSampleBookings(User, Room, Booking)
 	} catch (error) {
 		console.error('❌ Błąd synchronizacji:', error)
 	}

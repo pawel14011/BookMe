@@ -4,8 +4,9 @@ import { AuthProvider } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AdminPage from './pages/AdminPage'
-import ProtectedRoute from './components/ProtectedRoute'
 import BookingsPage from './pages/BookingsPage'
+import ProfilePage from './pages/ProfilePage'
+import ProtectedRoute from './components/ProtectedRoute'
 import './index.css'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
 					<Route path='/dashboard' element={<ProtectedRoute component={DashboardPage} />} />
 					<Route path='/admin' element={<ProtectedRoute component={AdminPage} />} />
 					<Route path='/bookings' element={<ProtectedRoute component={BookingsPage} />} />
+					<Route path='/profile' element={<ProtectedRoute component={ProfilePage} />} />
 					<Route path='/' element={<Navigate to='/dashboard' replace />} />
 				</Routes>
 			</AuthProvider>
